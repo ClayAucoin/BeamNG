@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Windows (PowerShell or CMD)
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "C:\_lib\_BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "M:\_lib\__BeamNG" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "D:\__BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
+# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "C:\_lib\_BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "M:\_lib\__BeamNG" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "D:\__BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
 #
 #!/usr/bin/env python3
 
