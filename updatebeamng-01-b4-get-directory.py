@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # Windows (PowerShell or CMD)
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "C:\_lib\_BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "M:\_lib\__BeamNG" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "D:\__BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\updatebeamng-01-b4-get-directory.py" -r "C:\_lib\_BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\updatebeamng-01-b4-get-directory.py" -r "M:\_lib\__BeamNG" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\updatebeamng-01-b4-get-directory.py" -r "D:\__BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
 #
+#!/usr/bin/env python3
+
 # BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
 # Author: ChatGPT (for Clay)
 #
@@ -24,9 +26,7 @@
 #   - If any fields are truncated in a row, writes the full (untruncated) values to a sidecar NDJSON file
 #     next to the CSV named "<csv_basename>.details.jsonl".
 #   - Supports --out-base-dir to derive output filename as "mods_index_on_<DRIVE>.csv".
-#   - Adds 'top_level_dir' column (first-level directory inside the zip) using precedence:
-#       gameplay, ui, lua, settings, scripts, flowEditor, timeTrials, levels, vehicles, mod_info, *
-#     If none of the listed names appear, picks the first top-level directory present.
+
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ FILE_INFO_COLS = [
     "row_id",           # stable id for the row
     "directory",        # parent directory on disk
     "file_name",        # zip filename
-    # "file_path",        # full path
+    "file_path",        # full path
     "file_size_bytes",  # size in bytes
     "date_created",     # filesystem ctime (best effort; on Linux it's change time)
     "date_modified",    # filesystem mtime
@@ -61,7 +61,6 @@ FILE_INFO_COLS = [
 
 # Derived from ZIP content
 DERIVED_COLS = [
-    "top_level_dir",    # NEW: first-level directory inside the zip (by precedence)
     "map_name",         # from levels/NAME/...
     "vehicle_name",     # from vehicles/NAME/...
     "info_json_count",  # number of info.json files found
@@ -101,12 +100,6 @@ PREFERRED_ORDER = (
     + MAP_KEYS
     + OTHER_KEYS
 )
-
-# Precedence for first-level directory detection (case-insensitive)
-TOP_DIR_PRECEDENCE = [
-    "gameplay", "ui", "lua", "settings", "scripts", "flowEditor",
-    "timeTrials", "levels", "vehicles", "mod_info"
-]
 
 # ---------------------------
 # Utility helpers
@@ -173,10 +166,14 @@ def cleanup_json_blob(blob: str) -> str:
       - e.g. {"a":1,} or [1,2,]
     Also strip BOM and attempt to remove C++-style line comments if present.
     """
+    # Strip BOM
     if blob and blob[0] == "\ufeff":
         blob = blob.lstrip("\ufeff")
+    # Remove // line comments (very light; only full-line comments)
     blob = re.sub(r"^\s*//.*$", "", blob, flags=re.MULTILINE)
+    # Remove /* ... */ comments (naive, but often enough)
     blob = re.sub(r"/\*.*?\*/", "", blob, flags=re.DOTALL)
+    # Fix trailing commas before } or ]
     prev = None
     while prev != blob:
         prev = blob
@@ -184,6 +181,7 @@ def cleanup_json_blob(blob: str) -> str:
     return blob
 
 def safe_load_json(raw_bytes: bytes, encoding: str = "utf-8") -> Optional[Dict]:
+    """Try to parse JSON, attempting cleanup if strict parse fails."""
     try:
         text = raw_bytes.decode(encoding, errors="replace")
     except Exception:
@@ -191,10 +189,12 @@ def safe_load_json(raw_bytes: bytes, encoding: str = "utf-8") -> Optional[Dict]:
             text = raw_bytes.decode("latin-1", errors="replace")
         except Exception:
             return None
+    # First try strict
     try:
         return json.loads(text)
     except Exception:
         pass
+    # Try cleanup
     try:
         cleaned = cleanup_json_blob(text)
         return json.loads(cleaned)
@@ -202,6 +202,11 @@ def safe_load_json(raw_bytes: bytes, encoding: str = "utf-8") -> Optional[Dict]:
         return None
 
 def find_map_or_vehicle_name(zip_obj: ZipFile) -> Tuple[str, str]:
+    """
+    Inspect entries to find levels/NAME/... and vehicles/NAME/...
+    Returns (map_name, vehicle_name) (one or both may be '').
+    Picks the first NAME found in each category.
+    """
     map_name = ""
     vehicle_name = ""
     try:
@@ -222,6 +227,7 @@ def find_map_or_vehicle_name(zip_obj: ZipFile) -> Tuple[str, str]:
     return map_name, vehicle_name
 
 def collect_info_jsons(zip_obj: ZipFile) -> List[str]:
+    """Return internal paths of files named 'info.json' (case-insensitive)."""
     paths = []
     try:
         for zi in zip_obj.infolist():
@@ -232,48 +238,15 @@ def collect_info_jsons(zip_obj: ZipFile) -> List[str]:
         pass
     return paths
 
-def collect_top_level_dir(zip_obj: ZipFile) -> str:
-    """
-    Determine the first-level directory inside the zip using precedence.
-    - Build an ordered list of unique top-level dir names as they appear.
-    - Return the first match in TOP_DIR_PRECEDENCE (case-insensitive).
-    - If none match, return the first encountered top-level dir (if any), else ''.
-    """
-    ordered = []
-    seen = set()
-    try:
-        for zi in zip_obj.infolist():
-            p = zi.filename.replace("\\", "/").lstrip("/")
-            parts = p.split("/")
-            if len(parts) > 1:
-                top = parts[0]
-                low = top.lower()
-                if low not in seen:
-                    seen.add(low)
-                    ordered.append(top)
-    except Exception:
-        pass
-
-    if not ordered:
-        return ""
-
-    lowset = {x.lower() for x in ordered}
-    for pref in TOP_DIR_PRECEDENCE:
-        if pref.lower() in lowset:
-            # return the original-cased name as first seen
-            for x in ordered:
-                if x.lower() == pref.lower():
-                    return x
-    # Fallback to first seen (the '*' behavior)
-    return ordered[0]
-
 def merge_dicts(left: Dict, right: Dict) -> Dict:
+    """Shallow merge: right overrides left for same keys."""
     merged = dict(left)
     for k, v in right.items():
         merged[k] = v
     return merged
 
 def read_info_json(zip_obj: ZipFile, internal_path: str) -> Optional[Dict]:
+    """Read and parse a single info.json inside the zip."""
     try:
         with zip_obj.open(internal_path, "r") as f:
             data = f.read()
@@ -281,7 +254,8 @@ def read_info_json(zip_obj: ZipFile, internal_path: str) -> Optional[Dict]:
     except Exception:
         return None
 
-def to_iso_pair(path: str) -> Tuple[str, str, float]:
+def file_times(path: str) -> Tuple[str, str, float, float]:
+    """Return (created_iso, modified_iso, created_ts, modified_ts)."""
     try:
         c = os.path.getctime(path)
     except Exception:
@@ -292,7 +266,7 @@ def to_iso_pair(path: str) -> Tuple[str, str, float]:
         m = None
     created = to_iso(c) if c else ""
     modified = to_iso(m) if m else ""
-    return created, modified, (m or 0.0)
+    return created, modified, (c or 0.0), (m or 0.0)
 
 def make_row_id(path: str, size: int, mtime_ts: float) -> str:
     h = hashlib.sha1()
@@ -304,26 +278,35 @@ def make_row_id(path: str, size: int, mtime_ts: float) -> str:
     return h.hexdigest()[:12]
 
 def get_file_info(zip_path: str) -> Dict[str, str]:
+    """Gather file-level info for the zip on disk + row_id."""
     directory = os.path.dirname(zip_path)
     file_name = os.path.basename(zip_path)
     try:
         size = os.path.getsize(zip_path)
     except Exception:
         size = 0
-    created, modified, m_ts = to_iso_pair(zip_path)
+    created, modified, c_ts, m_ts = file_times(zip_path)
     row_id = make_row_id(os.path.abspath(zip_path), size, m_ts)
     return {
         "row_id": row_id,
         "directory": directory,
         "file_name": file_name,
-        # "file_path": zip_path,
+        "file_path": zip_path,
         "file_size_bytes": str(size),
         "date_created": created,
         "date_modified": modified,
     }
 
 def normalize_fields(merged_json: Dict) -> Dict[str, str]:
+    """
+    Build the output dict of requested/normalized fields from the merged JSON.
+    - Merge authors from "Author" or "authors" into a single "authors" column.
+    - Create human-readable time columns for last_update and resource_date.
+    - Keep original keys (Vehicles, Maps, Other) as separate columns too.
+    """
     out: Dict[str, str] = {}
+
+    # Original keys
     for k in VEHICLE_KEYS + MAP_KEYS + OTHER_KEYS:
         if k in merged_json:
             v = merged_json.get(k)
@@ -335,6 +318,7 @@ def normalize_fields(merged_json: Dict) -> Dict[str, str]:
             else:
                 out[k] = str(v)
 
+    # Normalized authors
     a = merged_json.get("authors")
     if a is None:
         a = merged_json.get("Author")
@@ -346,10 +330,12 @@ def normalize_fields(merged_json: Dict) -> Dict[str, str]:
     elif a is not None:
         out["authors"] = str(a)
 
+    # Humanized timestamps
     if "last_update" in merged_json:
         out["last_update_human"] = parse_human_time(merged_json.get("last_update"))
     if "resource_date" in merged_json:
         out["resource_date_human"] = parse_human_time(merged_json.get("resource_date"))
+
     return out
 
 _ELLIPSIS = "…"
@@ -368,6 +354,11 @@ def clean_single_line(s: str) -> str:
     return s
 
 def sanitize_with_tracking(val: object, max_len: int) -> Tuple[str, bool, str, int]:
+    """
+    Returns (sanitized, was_truncated, original_serialized, original_len).
+    - original_serialized: before cleaning/truncation
+    - truncation is based on cleaned length > max_len
+    """
     original = serialize_value(val)
     cleaned = clean_single_line(original)
     was_truncated = False
@@ -377,6 +368,7 @@ def sanitize_with_tracking(val: object, max_len: int) -> Tuple[str, bool, str, i
     return cleaned, was_truncated, original, len(original)
 
 def walk_zip_paths(root: str) -> List[str]:
+    """Find all .zip files under root (case-insensitive)."""
     results = []
     for dirpath, dirnames, filenames in os.walk(root):
         for fn in filenames:
@@ -385,6 +377,7 @@ def walk_zip_paths(root: str) -> List[str]:
     return results
 
 def determine_headers(rows: List[Dict[str, str]]) -> List[str]:
+    """Compute CSV headers: prefer PREFERRED_ORDER, then add any extra keys seen."""
     keys_seen = set()
     for r in rows:
         keys_seen.update(r.keys())
@@ -437,8 +430,7 @@ def main():
                 row = fut.result()
                 rows.append(row)
             except Exception as e:
-                rows.append({"row_id": "", "zip_error": f"{type(e).__name__}: {e}"})
-                # rows.append({"row_id": "", "file_path": fut_map[fut], "zip_error": f"{type(e).__name__}: {e}"})
+                rows.append({"row_id": "", "file_path": fut_map[fut], "zip_error": f"{type(e).__name__}: {e}"})
             if not args.quiet and (i % 50 == 0 or i == len(fut_map)):
                 print(f"Processed {i}/{len(fut_map)}")
 
@@ -447,6 +439,7 @@ def main():
     out_path = compute_output_path(args.root, args.output, args.out_base_dir)
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
 
+    # Sidecar NDJSON path
     base, _ = os.path.splitext(out_path)
     sidecar_path = base + ".details.jsonl"
     truncated_count = 0
@@ -457,6 +450,7 @@ def main():
         w = csv.DictWriter(f_csv, fieldnames=headers)
         w.writeheader()
         for r in rows:
+            # Build sanitized row; collect truncations
             sanitized_row = {}
             trunc_fulls = {}
             trunc_lengths = {}
@@ -473,11 +467,12 @@ def main():
 
             w.writerow(sanitized_row)
 
+            # Emit sidecar only if something truncated in this row
             if truncated_fields:
                 rows_with_truncations += 1
                 sidecar_obj = {
                     "row_id": r.get("row_id", ""),
-                    # "file_path": r.get("file_path", ""),
+                    "file_path": r.get("file_path", ""),
                     "truncated_fields": truncated_fields,
                     "full": trunc_fulls,
                     "lengths": trunc_lengths,
@@ -494,6 +489,13 @@ def main():
         print(f"Elapsed: {elapsed:.2f}s")
 
 def process_zip(zip_path: str) -> Dict[str, str]:
+    """
+    Process a single zip:
+      - file info
+      - find map/vehicle names
+      - read & merge any info.json files
+    Returns a row dict for CSV.
+    """
     row: Dict[str, str] = {}
     row.update(get_file_info(zip_path))
 
@@ -502,11 +504,6 @@ def process_zip(zip_path: str) -> Dict[str, str]:
 
     try:
         with ZipFile(zip_path, "r") as zf:
-            # NEW: first-level dir by precedence
-            top_dir = collect_top_level_dir(zf)
-            if top_dir:
-                row["top_level_dir"] = top_dir
-
             # Derived names
             map_name, vehicle_name = find_map_or_vehicle_name(zf)
             if map_name:
@@ -521,6 +518,7 @@ def process_zip(zip_path: str) -> Dict[str, str]:
                 if isinstance(data, dict):
                     merged = merge_dicts(merged, data)
 
+            # Record info.json diagnostics
             row["info_json_count"] = str(len(info_paths))
             if info_paths:
                 row["info_json_paths"] = ";".join(info_paths)
@@ -533,6 +531,7 @@ def process_zip(zip_path: str) -> Dict[str, str]:
         row["info_json_paths"] = ""
         row["zip_error"] = f"{type(e).__name__}: {e}"
 
+    # Normalize JSON-derived fields
     if merged:
         row.update(normalize_fields(merged))
 
