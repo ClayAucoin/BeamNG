@@ -9,7 +9,7 @@
 # - Optional: add a source filename column; filter which CSVs to include; exclude summaries.
 #
 # Usage:
-#   python "C:\Users\Administrator\projects\BeamNG\combine-csvs.py" -i "C:\_lib\_BeamNG__\____test-extract____\_output" -o "C:\_lib\_BeamNG__\____test-extract____\combined.csv"
+#   python "C:\Users\Administrator\projects\BeamNG\combine-csvs.py" -i "C:\_lib\_BeamNG__\____directory-extract____\_output" -o "C:\_lib\_BeamNG__\____directory-extract____\combined.csv"
 #   python combine-csvs.py -i "/mnt/c/_lib/_BeamNG__/output" -o combined.csv --include "mods_index_on_*.csv" --include "allpairs_on_*.csv" --exclude "*keys_summary*.csv" --add-source-col
 #
 # Notes:

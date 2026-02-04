@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Windows (PowerShell or CMD)
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "M:\_lib\__BeamNG" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "D:\__BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\updatebeamng.py" -r "C:\_lib\_BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng-zip-extract.py" -r "M:\_lib\__BeamNG\__mods__" --out-base-dir "C:\_lib\_BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng-zip-extract.py" -r "D:\__BeamNG__\__mods__" --out-base-dir "C:\_lib\_BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng-zip-extract.py" -r "C:\_lib\_BeamNG__\___mods___" --out-base-dir "C:\_lib\_BeamNG__\____directory-extract____\_output"
 #
 # BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
 # Author: ChatGPT (for Clay)
@@ -104,8 +104,9 @@ PREFERRED_ORDER = (
 
 # Precedence for first-level directory detection (case-insensitive)
 TOP_DIR_PRECEDENCE = [
-    "gameplay", "ui", "lua", "settings", "scripts", "flowEditor",
-    "timeTrials", "levels", "vehicles", "mod_info"
+    # "gameplay", "ui", "lua", "settings", "scripts", "flowEditor", "timeTrials", "levels", "vehicles", "mod_info"
+    "ui", "timeTrials", "levels", "vehicles", "mod_info"
+
 ]
 
 # ---------------------------
