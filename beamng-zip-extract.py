@@ -51,8 +51,8 @@ from zipfile import ZipFile, BadZipFile
 # File information columns
 FILE_INFO_COLS = [
     "row_id",           # stable id for the row
-    "directory",        # parent directory on disk
     "file_name",        # zip filename
+    "directory",        # parent directory on disk
     # "file_path",        # full path
     "file_size_bytes",  # size in bytes
     "date_created",     # filesystem ctime (best effort; on Linux it's change time)
