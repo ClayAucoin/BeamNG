@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Windows (PowerShell or CMD)
-# python "C:\Users\Administrator\projects\BeamNG\beamng-zip-extract.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\beamng-zip-extract.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\beamng-zip-extract.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng_zip_extract.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng_zip_extract.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng_zip_extract.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
 #
 # BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
 # Author: ChatGPT (for Clay)
