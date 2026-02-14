@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 
-# Write to a drive-based path like mods_index_on_C.csv
-# python "C:\Users\Administrator\projects\BeamNG\beamng\beamng_zip_extract_v2.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\beamng\beamng_zip_extract_v2.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\beamng\beamng_zip_extract_v2.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
+# Updated: adds progress output similar to prior iteration.
+#
+# Example:
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2_progress_rules.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2_progress_rules.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2_progress_rules.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
 
-# Custom exclude list (comma separated), keep sidecar behavior
-# python beamng_zip_extract_v2.py -r "D:\BeamNG" --exclude-when-primary "gameplay,ui,scripts"
-
-# See chat for full description.
+#   python beamng_zip_extract_v2_progress.py -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output" --progress-every 50
+#
+# Notes:
+# - Progress prints "Processed X/Y" every N zips (default 50), unless --quiet is set.
+# - Gathers zip list first so Y is known (this can take a bit on slow disks, but avoids "looks like hanging").
 
 from __future__ import annotations
 import argparse, csv, os, json, re, hashlib, time
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from zipfile import ZipFile, BadZipFile
 
 EXCLUDE_DEFAULT = {
@@ -96,9 +100,7 @@ PREFERRED_ORDER = (
 
 def to_iso(ts: float) -> str:
     try:
-        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime(
-            "%Y-%m-%d %H:%M:%S %Z"
-        )
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
     except Exception:
         return ""
 
@@ -199,7 +201,6 @@ def get_file_info(zip_path: str) -> Dict[str, str]:
         "row_id": row_id,
         "directory": directory,
         "file_name": file_name,
-        # "file_path": zip_path,
         "file_size_bytes": str(size),
         "date_created": created,
         "date_modified": modified,
@@ -228,21 +229,41 @@ def find_info_paths(zf: ZipFile) -> List[str]:
     return paths
 
 
-def choose_primary_and_merge(paths: List[str]):
-    primary = None
-    mod_info = None
-    extras = []
+def categorize_info_paths(paths: List[str]):
+    """Categorize info.json paths by their top-level directory."""
+    levels = []
+    vehicles = []
+    mod_info = []
+    other = []
     for p in paths:
-        top = p.split("/")[0].lower()
-        if top == "vehicles" and not primary:
-            primary = p
-        elif top == "levels" and not primary:
-            primary = p
-        elif top == "mod_info" and not mod_info:
-            mod_info = p
+        top = (p.split("/")[0] if p else "").lower()
+        if top == "levels":
+            levels.append(p)
+        elif top == "vehicles":
+            vehicles.append(p)
+        elif top == "mod_info":
+            mod_info.append(p)
         else:
-            extras.append(p)
-    return primary, mod_info, extras
+            other.append(p)
+    return levels, vehicles, mod_info, other
+
+
+def select_info_jsons(paths: List[str]) -> List[str]:
+    """
+    Selection rules (one row per zip; we just decide which info.json files to read/merge):
+      - Always include mod_info/*/info.json if present.
+      - If ANY levels/ info.json exists: include ONLY all levels/*/info.json + all mod_info/*/info.json.
+        Ignore vehicles/ and all other directories.
+      - Else if ANY vehicles/ info.json exists: include ONLY all vehicles/*/info.json + all mod_info/*/info.json.
+        Ignore other directories.
+      - Else (no levels and no vehicles): include ALL info.json files found (including mod_info).
+    """
+    levels, vehicles, mod_info, other = categorize_info_paths(paths)
+    if levels:
+        return levels + mod_info
+    if vehicles:
+        return vehicles + mod_info
+    return paths
 
 
 def normalize_fields(j: Dict) -> Dict[str, str]:
@@ -295,6 +316,15 @@ def determine_headers(rows: List[Dict[str, str]]) -> List[str]:
     return ordered
 
 
+def walk_zips(root: str) -> List[str]:
+    zips = []
+    for dirpath, _, files in os.walk(root):
+        for fn in files:
+            if fn.lower().endswith(".zip"):
+                zips.append(os.path.join(dirpath, fn))
+    return zips
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-r", "--root", required=True)
@@ -302,6 +332,8 @@ def main():
     ap.add_argument("--out-base-dir")
     ap.add_argument("--max-cell-chars", type=int, default=1000)
     ap.add_argument("--exclude-when-primary", default=",".join(sorted(EXCLUDE_DEFAULT)))
+    ap.add_argument("--progress-every", type=int, default=50, help="Print progress every N zips (default 50). Use 0 to disable.")
+    ap.add_argument("--quiet", action="store_true", help="Suppress progress output.")
     args = ap.parse_args()
 
     def compute_output_path(root, explicit, base_dir):
@@ -311,12 +343,7 @@ def main():
             if drive:
                 return (drive[0] if drive[0].isalpha() else "X").upper()
             parts = abspath.replace("\\", "/").split("/")
-            if (
-                len(parts) > 2
-                and parts[1] == "mnt"
-                and len(parts[2]) == 1
-                and parts[2].isalpha()
-            ):
+            if len(parts) > 2 and parts[1] == "mnt" and len(parts[2]) == 1 and parts[2].isalpha():
                 return parts[2].upper()
             if abspath.startswith("\\\\") or abspath.startswith("//"):
                 return "UNC"
@@ -330,83 +357,68 @@ def main():
 
     out_path = compute_output_path(args.root, args.output, args.out_base_dir)
     sidecar_path = os.path.splitext(out_path)[0] + ".details.jsonl"
-    excl = {
-        x.strip().lower()
-        for x in (args.exclude_when_primary or "").split(",")
-        if x.strip()
-    }
+    excl = {x.strip().lower() for x in (args.exclude_when_primary or "").split(",") if x.strip()}
+
+    start = time.time()
+    zips = walk_zips(args.root)
+    total = len(zips)
+    if not args.quiet:
+        print(f"Found {total} zip(s) under: {os.path.abspath(args.root)}", flush=True)
 
     rows = []
-    for dirpath, _, files in os.walk(args.root):
-        for fn in files:
-            if not fn.lower().endswith(".zip"):
-                continue
-            zp = os.path.join(dirpath, fn)
-            file_info = get_file_info(zp)
-            row = dict(file_info)
-            try:
-                with ZipFile(zp, "r") as zf:
-                    row["top_level_dir"] = collect_top_level_dir(zf) or ""
-                    info_paths = find_info_paths(zf)
-                    primary, mod_info, extras = choose_primary_and_merge(info_paths)
-                    selected = []
-                    if primary:
-                        selected.append(primary)
-                        for p in extras:
-                            top = p.split("/")[0].lower() if p else ""
-                            if top == "mod_info":
-                                continue
-                            if top in excl:
-                                continue
-                            selected.append(p)
-                    else:
-                        selected = info_paths[:1]
+    for i, zp in enumerate(zips, 1):
+        file_info = get_file_info(zp)
+        row = dict(file_info)
+        try:
+            with ZipFile(zp, "r") as zf:
+                row["top_level_dir"] = collect_top_level_dir(zf) or ""
+                info_paths = find_info_paths(zf)
+                selected = select_info_jsons(info_paths)
 
-                    merged = {}
-                    for p in selected:
-                        try:
-                            with zf.open(p, "r") as f:
-                                data = f.read()
-                            j = safe_load_json(data) or {}
-                            if isinstance(j, dict):
-                                merged.update(j)
-                        except Exception:
-                            pass
-                    if mod_info:
-                        try:
-                            with zf.open(mod_info, "r") as f:
-                                data = f.read()
-                            mj = safe_load_json(data) or {}
-                            if isinstance(mj, dict):
-                                merged.update(mj)
-                        except Exception:
-                            pass
+                merged = {}
+                for p in selected:
+                    try:
+                        with zf.open(p, "r") as f:
+                            data = f.read()
+                        j = safe_load_json(data) or {}
+                        if isinstance(j, dict):
+                            merged.update(j)
+                    except Exception:
+                        pass
+                if mod_info:
+                    try:
+                        with zf.open(mod_info, "r") as f:
+                            data = f.read()
+                        mj = safe_load_json(data) or {}
+                        if isinstance(mj, dict):
+                            merged.update(mj)
+                    except Exception:
+                        pass
 
-                    row["info_json_count"] = str(len(info_paths))
-                    if info_paths:
-                        row["info_json_paths"] = ";".join(info_paths)
-                    for zi in zf.infolist():
-                        p = zi.filename.replace("\\", "/")
-                        parts = p.split("/")
-                        for i in range(len(parts) - 1):
-                            if (
-                                parts[i].lower() == "levels"
-                                and i + 1 < len(parts)
-                                and "map_name" not in row
-                            ):
-                                row["map_name"] = parts[i + 1]
-                            if (
-                                parts[i].lower() == "vehicles"
-                                and i + 1 < len(parts)
-                                and "vehicle_name" not in row
-                            ):
-                                row["vehicle_name"] = parts[i + 1]
-                    row.update(normalize_fields(merged))
-            except BadZipFile:
-                row["zip_error"] = "BadZipFile"
-            except Exception as e:
-                row["zip_error"] = f"{type(e).__name__}: {e}"
-            rows.append(row)
+                row["info_json_count"] = str(len(info_paths))
+                if info_paths:
+                    row["info_json_paths"] = ";".join(info_paths)
+
+                for zi in zf.infolist():
+                    p = zi.filename.replace("\\", "/")
+                    parts = p.split("/")
+                    for j in range(len(parts) - 1):
+                        if parts[j].lower() == "levels" and j + 1 < len(parts) and "map_name" not in row:
+                            row["map_name"] = parts[j + 1]
+                        if parts[j].lower() == "vehicles" and j + 1 < len(parts) and "vehicle_name" not in row:
+                            row["vehicle_name"] = parts[j + 1]
+
+                row.update(normalize_fields(merged))
+        except BadZipFile:
+            row["zip_error"] = "BadZipFile"
+        except Exception as e:
+            row["zip_error"] = f"{type(e).__name__}: {e}"
+        rows.append(row)
+
+        if (not args.quiet) and args.progress_every and (i % args.progress_every == 0 or i == total):
+            elapsed = time.time() - start
+            rate = (i / elapsed) if elapsed > 0 else 0.0
+            print(f"Processed {i}/{total} ({rate:.1f} zips/s)", flush=True)
 
     headers = determine_headers(rows)
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
@@ -424,9 +436,7 @@ def main():
             lens = {}
             tfields = []
             for k, v in r.items():
-                s, t, orig, ln = sanitize_cell(
-                    str(v) if v is not None else "", max_len=args.max_cell_chars
-                )
+                s, t, orig, ln = sanitize_cell(str(v) if v is not None else "", max_len=args.max_cell_chars)
                 sanitized[k] = s
                 if t:
                     tfields.append(k)
@@ -440,7 +450,6 @@ def main():
                     json.dumps(
                         {
                             "row_id": r.get("row_id", ""),
-                            # "file_path": r.get("file_path", ""),
                             "truncated_fields": tfields,
                             "full": fulls,
                             "lengths": lens,
@@ -449,10 +458,11 @@ def main():
                     )
                     + "\n"
                 )
-    print(f"Wrote {len(rows)} rows to {out_path}")
-    print(
-        f"Sidecar: {sidecar_path} (rows with truncations: {trunc_rows}, total truncated cells: {trunc_cells})"
-    )
+
+    elapsed = time.time() - start
+    print(f"Wrote {len(rows)} rows to {out_path}", flush=True)
+    print(f"Sidecar: {sidecar_path} (rows with truncations: {trunc_rows}, total truncated cells: {trunc_cells})", flush=True)
+    print(f"Elapsed: {elapsed:.2f}s", flush=True)
 
 
 if __name__ == "__main__":
