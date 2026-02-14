@@ -11,9 +11,9 @@
 # See chat for full description.
 
 from __future__ import annotations
-import argparse, csv, os, json, re, hashlib, time
+import argparse, csv, os, json, re, hashlib, time  # noqa: E401, F401
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional             #, Tuple
 from zipfile import ZipFile, BadZipFile
 
 EXCLUDE_DEFAULT = {

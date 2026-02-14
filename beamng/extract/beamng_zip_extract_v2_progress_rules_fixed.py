@@ -16,7 +16,7 @@
 
 
 from __future__ import annotations
-import argparse, csv, os, json, re, hashlib, time
+import argparse, csv, os, json, re, hashlib, time  # noqa: E401
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from zipfile import ZipFile, BadZipFile
@@ -360,7 +360,7 @@ def main():
 
     out_path = compute_output_path(args.root, args.output, args.out_base_dir)
     sidecar_path = os.path.splitext(out_path)[0] + ".details.jsonl"
-    excl = {x.strip().lower() for x in (args.exclude_when_primary or "").split(",") if x.strip()}
+    excl = {x.strip().lower() for x in (args.exclude_when_primary or "").split(",") if x.strip()}  # noqa: F841
 
     start = time.time()
     zips = walk_zips(args.root)
