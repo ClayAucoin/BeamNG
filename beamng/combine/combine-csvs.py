@@ -27,7 +27,7 @@ import csv
 import fnmatch
 import os
 import sys
-from typing import Iterable, List, Set, Dict, Tuple
+from typing import Iterable, List, Set, Dict, Tuple  # noqa: F401
 
 # Common preferred columns seen in the main inventory script
 PREFERRED_FIRST = [

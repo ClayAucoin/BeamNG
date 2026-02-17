@@ -27,7 +27,7 @@ v3 (Clay rules update):
 """
 
 from __future__ import annotations
-import argparse, csv, os, json, re, hashlib, time, sys
+import argparse, csv, os, json, re, hashlib, time, sys  # noqa: E401
 try:
     import tkinter as _tk
     from tkinter import messagebox as _messagebox

@@ -24,12 +24,12 @@ from __future__ import annotations
 
 import argparse
 import csv
-import io
+import io  # noqa: F401
 import json
 import os
 import re
-import sys
-import time
+import sys  # noqa: F401
+import time  # noqa: F401
 import hashlib
 from collections import defaultdict
 from datetime import datetime, timezone
