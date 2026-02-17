@@ -14,9 +14,9 @@
 #   - Also writes a key frequency summary CSV listing how often each key_path appears.
 #
 # Example:
-#   python "C:\Users\Administrator\projects\BeamNG\extractallfromzips.py" -r "C:\_lib\_BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
-#   python "C:\Users\Administrator\projects\BeamNG\extractallfromzips.py" -r "M:\_lib\__BeamNG" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
-#   python "C:\Users\Administrator\projects\BeamNG\extractallfromzips.py" -r "D:\__BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
+#   python "C:\Users\Administrator\projects\BeamNG\beamng\extract\extract_key_val_pairs_from_zips.py" -r "C:\_lib\_BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
+#   python "C:\Users\Administrator\projects\BeamNG\beamng\extract\extract_key_val_pairs_from_zips.py" -r "M:\_lib\__BeamNG" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
+#   python "C:\Users\Administrator\projects\BeamNG\beamng\extract\extract_key_val_pairs_from_zips.py" -r "D:\__BeamNG__" --out-base-dir "C:\_lib\_BeamNG__\____test-extract____"
 #
 # -> allpairs_on_D.csv  (+ .details.jsonl) and keys_summary_on_D.csv
 

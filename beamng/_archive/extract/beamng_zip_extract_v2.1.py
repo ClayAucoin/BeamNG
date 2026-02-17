@@ -1,14 +1,29 @@
 #!/usr/bin/env python3
 
-# BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
-# Updated: adds progress output similar to prior iteration.
+# Description of this script:
+# - Walks a root directory to find all .zip files (BeamNG mods).
+# - For each zip, collects file info (size, timestamps) and tries to read/merge any info.json files inside.
+# - Applies selection rules to decide which info.json files to consider (e.g. prefer levels/*/info.json if any, else vehicles/*/info.json, else all).
+# - Normalizes certain fields (e.g. authors, last_update) into a consistent format.
+# - Writes a CSV with one row per zip, including file info and merged info.json fields.
+# - If any cell exceeds a specified max length, truncates it in the CSV and writes the full value to a sidecar JSONL file keyed by row_id.
+# - progress_rules_fixed: adds progress output similar to prior iteration.
+# - BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
+# - Updated: adds progress output similar to prior iteration.
 #
-# Example:
-# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2_progress_rules_fixed.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2_progress_rules_fixed.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
-# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2_progress_rules_fixed.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# Usage:
+#   python beamng_zip_extract_v2.1.py -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output" --progress-every 50 --max-cell-chars 1000
 
-#   python beamng_zip_extract_v2_progress_rules_fixed.py -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output" --progress-every 50
+# Example:
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2.1.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2.1.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v2.1.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+
+# python "beamng_zip_extract_v2.1.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "beamng_zip_extract_v2.1.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+# python "beamng_zip_extract_v2.1.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output"
+
+#   python beamng_zip_extract_v2.1.py -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\__BeamNG__\____directory-extract____\_output" --progress-every 50
 #
 # Notes:
 # - Progress prints "Processed X/Y" every N zips (default 50), unless --quiet is set.

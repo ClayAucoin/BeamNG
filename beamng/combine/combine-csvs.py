@@ -9,7 +9,9 @@
 # - Optional: add a source filename column; filter which CSVs to include; exclude summaries.
 #
 # Usage:
-#   python "C:\Users\Administrator\projects\BeamNG\combine-csvs.py" -i "C:\__BeamNG__\____directory-extract____\_output" -o "C:\__BeamNG__\____directory-extract____\combined.csv"
+#   python "C:\Users\Administrator\projects\BeamNG\beamng\combine\combine-csvs.py" -i "C:\__BeamNG__\____directory-extract____\_output" -o "C:\__BeamNG__\____directory-extract____\combined.csv"
+#   python "combine-csvs.py" -i "C:\__BeamNG__\____directory-extract____\_output" -o "C:\__BeamNG__\____directory-extract____\combined.csv"
+
 #   python combine-csvs.py -i "/mnt/c/__BeamNG__/____directory-extract____/_output" -o combined.csv --include "mods_index_on_*.csv" --include "allpairs_on_*.csv" --exclude "*keys_summary*.csv" --add-source-col
 #
 # Notes:
@@ -31,9 +33,9 @@ from typing import Iterable, List, Set, Dict, Tuple
 PREFERRED_FIRST = [
     "row_id",
     "file_path",
-    "directory",
     "file_name",
     "file_size_bytes",
+    "directory",
     "date_created",
     "date_modified",
     "top_level_dir",
