@@ -7,7 +7,7 @@
 """
 BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
 
-v3 (Clay rules update):
+v4 (Clay rules update):
 - Progress output: "Processed X/Y" every N zips.
 - One row per zip.
 - Directory exclusion "ground zero": excluded top-level dirs are not searched for JSON (info.json/app.json).
@@ -314,7 +314,7 @@ def _show_popup(title: str, message: str) -> None:
 
 
 # ---------------------------
-# SQLite cache (v3)
+# SQLite cache (v4 addition)
 # ---------------------------
 CACHE_SCHEMA_VERSION = 1
 
