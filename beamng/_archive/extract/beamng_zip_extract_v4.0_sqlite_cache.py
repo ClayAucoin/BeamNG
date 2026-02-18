@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4_sqlite_cache.py' -r 'D:\__BeamNG__\___mods___' --out-base-dir 'C:\__BeamNG__\____directory-extract____\_output'
-# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4_sqlite_cache.py' -r 'M:\__BeamNG__\___mods___' --out-base-dir 'C:\__BeamNG__\____directory-extract____\_output'
-# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4_sqlite_cache.py' -r 'C:\__BeamNG__\___mods___' --out-base-dir 'C:\__BeamNG__\____directory-extract____\_output'
-# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4_sqlite_cache.py' -r 'R:\__BeamNG__\___mods___' --out-base-dir 'C:\__BeamNG__\____directory-extract____\_output'
+# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.0_sqlite_cache.py' -r 'D:\__BeamNG__\___mods___' --out-base-dir 'C:\__BeamNG__\____directory-extract____\_output'
+# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.0_sqlite_cache.py' -r 'M:\__BeamNG__\___mods___' --out-base-dir 'C:\__BeamNG__\____directory-extract____\_output'
+# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.0_sqlite_cache.py' -r 'C:\__BeamNG__\___mods___' --out-base-dir 'C:\__BeamNG__\____directory-extract____\_output'
+# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.0_sqlite_cache.py' -r 'R:\__BeamNG__\___mods___' --out-base-dir 'C:\__BeamNG__\____directory-extract____\_output'
 
 """
 BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
