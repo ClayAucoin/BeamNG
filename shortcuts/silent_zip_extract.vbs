@@ -8,7 +8,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 ' ---- CONFIG ----
 Dim PYTHONW, EXTRACT_PY, COMBINE_PY
 PYTHONW   = "pythonw.exe"
-EXTRACT_PY = "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.1.py"
+EXTRACT_PY = "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.3.py"
 ' COMBINE_PY = "C:\Users\Administrator\projects\BeamNG\beamng\combine\combine-csvs.py"
 
 Dim OUT_DIR
@@ -39,7 +39,7 @@ Const MAX_WAIT_SEC = 86400 ' 24 hours safety timeout
 ' ---- LAUNCH EXTRACTS IN PARALLEL ----
 Dim i, cmd
 For i = 0 To UBound(roots)
-  cmd = """" & PYTHONW & """ """ & EXTRACT_PY & """ -r """ & roots(i) & """ --out-base-dir """ & OUT_DIR & """"
+  cmd = """" & PYTHONW & """ """ & EXTRACT_PY & """ -r """ & roots(i) & """ --out-base-dir """ & OUT_DIR & """ --popup"
   ' cmd = """" & PYTHONW & """ """ & EXTRACT_PY & """ -r """ & roots(i) & """ --out-base-dir """ & OUT_DIR & """ --no-popup"
   sh.Run cmd, 0, False
 Next

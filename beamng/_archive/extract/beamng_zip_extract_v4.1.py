@@ -71,9 +71,9 @@ COMMON_SUPPORT_DIRS = ["ui", "scripts", "settings", "lua"]
 # ---------------------------
 FILE_INFO_COLS = [
     "row_id",
-    "directory",
     "file_name",
     "file_size_bytes",
+    "directory",
     "date_created",
     "date_modified",
 ]
@@ -265,9 +265,9 @@ def get_file_info(zip_path: str) -> Dict[str, str]:
     row_id = make_row_id(zip_path, size, m_ts)
     return {
         "row_id": row_id,
-        "directory": directory,
         "file_name": file_name,
         "file_size_bytes": str(size),
+        "directory": directory,
         "date_created": created,
         "date_modified": modified,
     }
@@ -374,6 +374,25 @@ def _show_popup(title: str, message: str) -> None:
         root.destroy()
     except Exception:
         return
+
+
+PROTECTED_DIRS = {"levels", "vehicles", "mod_info", "ui"}  # never exclude these
+
+
+def path_has_excluded_dir(internal_path: str, exclude: set) -> bool:
+    """
+    True if ANY directory segment in the internal path is excluded.
+    We ignore the filename segment.
+    """
+    p = internal_path.replace("\\", "/").lstrip("/")
+    parts = [x.lower() for x in p.split("/") if x]
+    if len(parts) <= 1:
+        return False  # no directories
+    dirs = parts[:-1]  # exclude filename
+    for d in dirs:
+        if d in exclude and d not in PROTECTED_DIRS:
+            return True
+    return False
 
 
 # ---------------------------
@@ -613,9 +632,11 @@ def collect_json_candidates(zf: ZipFile, exclude: set) -> Tuple[List[str], List[
         ip = zi.filename.replace("\\", "/").lstrip("/")
         if not ip:
             continue
-        top = top_level_from_internal(ip)
-        if top in exclude:
+
+        # NEW: exclude if any segment matches
+        if path_has_excluded_dir(ip, exclude):
             continue
+
         base = os.path.basename(ip).lower()
         if base == "info.json":
             info_paths.append(ip)
@@ -881,13 +902,13 @@ def main():
     if _should_show_popup(auto=True, popup_flag=args.popup):
         drive = derive_letter_from_path(args.root)
         msg = (
-            f"BeamNG ZIP extract finished.\n\n"
+            f"BeamNG ZIP extract finished for {drive} drive.\n\n"
             f"Drive: {drive}\n"
             f"Root: {os.path.abspath(args.root)}\n"
             f"Rows: {len(rows)}\n"
-            f"Output: {out_path}"
+            # f"Output: {out_path}"
         )
-        _show_popup("BeamNG ZIP Extract", msg)
+        _show_popup(f"{drive} drive BeamNG ZIP Extract", msg)
 
 
 if __name__ == "__main__":

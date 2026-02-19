@@ -588,13 +588,13 @@ def main():
     if _should_show_popup(auto=True, popup_flag=args.popup):
         drive = derive_letter_from_path(args.root)
         msg = (
-            f"BeamNG ZIP extract finished.\n\n"
+            f"{drive} drive BeamNG ZIP extract finished.\n\n"
             f"Drive: {drive}\n"
             f"Root: {os.path.abspath(args.root)}\n"
             f"Rows: {len(rows)}\n"
             f"Output: {out_path}"
         )
-        _show_popup("BeamNG ZIP Extract", msg)
+        _show_popup(f"{drive} drive BeamNG ZIP Extract", msg)
 
 if __name__ == "__main__":
     main()
