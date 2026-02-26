@@ -9,7 +9,7 @@
 # - Optional: add a source filename column; filter which CSVs to include; exclude summaries.
 #
 # Usage:
-#   python "C:\Users\Administrator\projects\BeamNG\beamng\combine\combine-csvs.py" -i "C:\__BeamNG__\____directory-extract____\_output" -o "C:\__BeamNG__\____directory-extract____\combined.csv"
+#   python "C:\Users\Administrator\projects\BeamNG\beamng\combine\combine-csvs.py" -i "C:\__BeamNG__\____directory-extract____\_output" -o "G:\My Drive\__BeamNG__\____directory-extract____\combined.csv"
 #   python "combine-csvs.py" -i "C:\__BeamNG__\____directory-extract____\_output" -o "C:\__BeamNG__\____directory-extract____\combined.csv"
 
 #   python combine-csvs.py -i "/mnt/c/__BeamNG__/____directory-extract____/_output" -o combined.csv --include "mods_index_on_*.csv" --include "allpairs_on_*.csv" --exclude "*keys_summary*.csv" --add-source-col
@@ -46,7 +46,7 @@ PREFERRED_FIRST = [
     "authors",
     "last_update_human",
     "resource_date_human",
-    "message",              # often present and long
+    # "message",              # often present and long
     "zip_error",
 ]
 

@@ -8,7 +8,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 ' ---- CONFIG ----
 Dim PYTHONW, EXTRACT_PY, COMBINE_PY
 PYTHONW   = "pythonw.exe"
-EXTRACT_PY = "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.3.py"
+EXTRACT_PY = "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.5.py"
 ' COMBINE_PY = "C:\Users\Administrator\projects\BeamNG\beamng\combine\combine-csvs.py"
 
 Dim OUT_DIR

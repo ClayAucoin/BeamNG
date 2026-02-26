@@ -1,36 +1,23 @@
 #!/usr/bin/env python3
-# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.3.py' -r 'D:\__BeamNG__\___mods___' --out-base-dir 'G:\My Drive\__BeamNG__\____directory-extract____\output'
-# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.3.py' -r 'M:\__BeamNG__\___mods___' --out-base-dir 'G:\My Drive\__BeamNG__\____directory-extract____\output'
-# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.3.py' -r 'C:\__BeamNG__\___mods___' --out-base-dir 'G:\My Drive\__BeamNG__\____directory-extract____\output'
-# python 'C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.3.py' -r 'R:\__BeamNG__\___mods___' --out-base-dir 'G:\My Drive\__BeamNG__\____directory-extract____\output'
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.4.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "G:\My Drive\__BeamNG__\____directory-extract____\output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.4.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "G:\My Drive\__BeamNG__\____directory-extract____\output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.4.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "G:\My Drive\__BeamNG__\____directory-extract____\output"
+# python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.4.py" -r "R:\__BeamNG__\___mods___" --out-base-dir "G:\My Drive\__BeamNG__\____directory-extract____\output"
 
-# python 'beamng_zip_extract_v4.3.py' -r 'D:\__BeamNG__\___mods___' --out-base-dir 'G:\My Drive\__BeamNG__\____directory-extract____\output'
-# python 'beamng_zip_extract_v4.3.py' -r 'M:\__BeamNG__\___mods___' --out-base-dir 'G:\My Drive\__BeamNG__\____directory-extract____\output'
-# python 'beamng_zip_extract_v4.3.py' -r 'C:\__BeamNG__\___mods___' --out-base-dir 'G:\My Drive\__BeamNG__\____directory-extract____\output'
-# python 'beamng_zip_extract_v4.3.py' -r 'R:\__BeamNG__\___mods___' --out-base-dir 'G:\My Drive\__BeamNG__\____directory-extract____\output'
+# python "beamng_zip_extract_v4.4.py" -r "D:\__BeamNG__\___mods___" --out-base-dir "G:\My Drive\__BeamNG__\____directory-extract____\output"
+# python "beamng_zip_extract_v4.4.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "G:\My Drive\__BeamNG__\____directory-extract____\output"
+# python "beamng_zip_extract_v4.4.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "G:\My Drive\__BeamNG__\____directory-extract____\output"
+# python "beamng_zip_extract_v4.4.py" -r "R:\__BeamNG__\___mods___" --out-base-dir "G:\My Drive\__BeamNG__\____directory-extract____\output"
 
 
 """
 BeamNG ZIP Inventory -> CSV (+ sidecar JSONL for truncated fields)
 
-v4 (Clay rules update):
-- Progress output: "Processed X/Y" every N zips.
-- One row per zip.
-- Directory exclusion "ground zero": excluded top-level dirs are not searched for JSON (info.json/app.json).
-- JSON selection logic (priority):
-  1) If levels/**/info.json exists (and not excluded): use ALL levels/**/info.json + ALL mod_info/**/info.json. Nothing else.
-     If "levels" dir exists but has no levels info.json => fall through.
-  2) Else if vehicles/**/info.json exists (and not excluded): use ALL vehicles/**/info.json + ALL mod_info/**/info.json. Nothing else.
-     If vehicles dir exists but has no vehicles info.json => fall through.
-  3) Else if ui/modules/apps/**/app.json exists (and not excluded): use ALL those app.json + ALL mod_info/**/info.json. Nothing else.
-     - Adds ui_name column: collects the app directory name(s) under ui/modules/apps/<ui_name>/app.json
-  4) Else: if ANY mod_info/**/info.json exists: use ALL mod_info/**/info.json
-  5) Else: no json files => set top_level_dir to "no-json-file" and output file info only.
-- Multiple JSON files in the chosen rule:
-  - We DO NOT create extra rows. We aggregate per field.
-  - If a field has multiple distinct values across files, we join them with " | " (order-preserving).
-- Adds diagnostics columns:
-  - json_rule_used, json_selected_count, json_selected_paths
+v4.4 changes:
+- Adds has_message column.
+- Moves full "message" out of CSV into per-row files: <row_id>.txt in a messages folder.
+- Optional message_preview column (default 500 chars) stored in CSV.
+- Allows disabling preview entirely (0 chars).
 """
 
 from __future__ import annotations
@@ -42,6 +29,7 @@ try:
 except Exception:
     _tk = None
     _messagebox = None
+
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 from zipfile import ZipFile, BadZipFile
@@ -49,7 +37,6 @@ from zipfile import ZipFile, BadZipFile
 # ---------------------------
 # Ground-zero exclusions
 # ---------------------------
-# Top-level directories here are NOT searched for info.json/app.json.
 EXCLUDE_DEFAULT = [
     ".git",
     "art",
@@ -62,11 +49,7 @@ EXCLUDE_DEFAULT = [
     "shaders",
 ]
 
-# This is just a convenience list you can extend; it's not used for selection,
-# but it documents common "support" dirs you mentioned.
 COMMON_SUPPORT_DIRS = ["ui", "scripts", "settings", "lua"]
-
-# Directories that should NEVER be excluded even if listed (core mod roots)
 PROTECTED_DIRS = {"levels", "vehicles", "mod_info", "ui"}
 
 
@@ -76,12 +59,8 @@ def path_has_excluded_dir(path: str, exclude: set) -> bool:
     if len(parts) <= 1:
         return False
 
-    # directories only (exclude filename)
     dirs = parts[:-1]
 
-    # If it starts with levels/<name>/... or vehicles/<name>/..., don't apply excludes to:
-    #   dirs[0] = levels/vehicles
-    #   dirs[1] = <mapName>/<vehName>
     start_idx = 0
     if len(dirs) >= 2 and dirs[0] in ("levels", "vehicles"):
         start_idx = 2
@@ -105,17 +84,17 @@ FILE_INFO_COLS = [
 ]
 
 DERIVED_COLS = [
-    "top_level_dir",  # source category used: levels/vehicles/ui/mod_info/no-json-file
-    "map_name",  # from levels/NAME/...
-    "vehicle_name",  # from vehicles/NAME/...
-    "ui_name",  # from ui/modules/apps/<ui_name>/app.json (can be multi)
-    "info_json_count",  # count of info.json found (after exclusion)
-    "info_json_paths",  # all info.json paths found (after exclusion)
-    "app_json_count",  # count of app.json found (after exclusion)
-    "app_json_paths",  # all app.json paths found (after exclusion)
-    "json_rule_used",  # levels|vehicles|ui|mod_info|no-json-file
-    "json_selected_count",  # how many json files were used for extraction
-    "json_selected_paths",  # semicolon separated paths actually used
+    "top_level_dir",
+    "map_name",
+    "vehicle_name",
+    "ui_name",
+    "info_json_count",
+    "info_json_paths",
+    "app_json_count",
+    "app_json_paths",
+    "json_rule_used",
+    "json_selected_count",
+    "json_selected_paths",
 ]
 
 NORMALIZED_COLS = ["authors", "last_update_human", "resource_date_human"]
@@ -142,9 +121,6 @@ MAP_KEYS = [
     "country",
     "biome",
     "size",
-    # "localUnits",
-    # "previews",
-    # "length",
 ]
 
 OTHER_KEYS = [
@@ -153,16 +129,18 @@ OTHER_KEYS = [
     "resource_date",
     "tag_line",
     "filename",
-    # "user_id",
     "username",
     "tagid",
-    "message",
-    # "category_title",
+    "message",  # we will remove from CSV row and store externally
     "prefix_title",
-    # "via",
 ]
 
-# Some app.json files use slightly different keys; map the common ones into our output keys when possible.
+# New columns we add in v4.4
+MESSAGE_COLS = [
+    "has_message",
+    "message_preview",  # optional; can be blank if preview disabled
+]
+
 APP_KEY_ALIASES = {
     "name": ["Name", "title"],
     "author": ["Author", "authors"],
@@ -175,23 +153,20 @@ APP_KEY_ALIASES = {
 PREFERRED_ORDER = (
     FILE_INFO_COLS
     + DERIVED_COLS
+    + MESSAGE_COLS
     + NORMALIZED_COLS
     + VEHICLE_KEYS
     + MAP_KEYS
     + OTHER_KEYS
 )
 
+
 # ---------------------------
 # Helpers
-# start of a long list of helpers for time parsing, JSON cleaning, caching, field normalization, etc.
 # ---------------------------
-
-
 def to_iso(ts: float) -> str:
     try:
-        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime(
-            "%Y-%m-%d %H:%M:%S %Z"
-        )
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
     except Exception:
         return ""
 
@@ -210,6 +185,7 @@ def parse_human_time(value: object) -> str:
                 return to_iso(num)
     except Exception:
         pass
+
     if isinstance(value, str):
         s2 = value.strip().replace("Z", "+00:00").replace("z", "+00:00")
         try:
@@ -337,21 +313,14 @@ def derive_letter_from_path(path: str) -> str:
     if drive:
         return (drive[0] if drive[0].isalpha() else "X").upper()
     parts = abspath.replace("\\", "/").split("/")
-    if (
-        len(parts) > 2
-        and parts[1] == "mnt"
-        and len(parts[2]) == 1
-        and parts[2].isalpha()
-    ):
+    if len(parts) > 2 and parts[1] == "mnt" and len(parts[2]) == 1 and parts[2].isalpha():
         return parts[2].upper()
     if abspath.startswith("\\\\") or abspath.startswith("//"):
         return "UNC"
     return "X"
 
 
-def compute_output_path(
-    root: str, explicit_output: Optional[str], out_base_dir: Optional[str]
-) -> str:
+def compute_output_path(root: str, explicit_output: Optional[str], out_base_dir: Optional[str]) -> str:
     if explicit_output:
         return explicit_output
     base = out_base_dir or os.getcwd()
@@ -361,36 +330,24 @@ def compute_output_path(
 
 
 def _should_show_popup(auto: bool, popup_flag: Optional[bool]) -> bool:
-    """Decide whether to show a completion popup.
-
-    - If user explicitly sets --popup/--no-popup, respect it.
-    - Otherwise (auto), only show when running in an interactive user session.
-    """
     if popup_flag is not None:
         return bool(popup_flag)
     if not auto:
         return False
-
-    # Heuristics: Task Scheduler commonly runs without a TTY and/or under Services session.
     try:
         if not sys.stdout.isatty():
             return False
     except Exception:
         return False
-
     session = (os.environ.get("SESSIONNAME") or "").lower()
     if session in {"services", "service"}:
         return False
-
-    # If tkinter isn't available, don't attempt.
     if _tk is None or _messagebox is None:
         return False
-
     return True
 
 
 def _show_popup(title: str, message: str) -> None:
-    """Show a simple Windows popup (best effort)."""
     if _tk is None or _messagebox is None:
         return
     try:
@@ -419,7 +376,6 @@ def is_under_any(root: str, names: List[str], path: str) -> bool:
 
 
 NEVER_ROOT_NAMES = {
-    # structural / junk names we never want as map_name/vehicle_name
     "gameplay",
     "art",
     "lua",
@@ -439,22 +395,12 @@ def _split_parts(p: str) -> List[str]:
     return [x for x in p.replace("\\", "/").lstrip("/").split("/") if x]
 
 
-def collect_roots_from_json_paths(
-    info_paths: List[str], app_paths: List[str]
-) -> Tuple[str, str, str]:
-    """
-    Returns (map_name, vehicle_name, ui_name) as ';' joined lists.
-    Only counts *direct* roots:
-      - levels/<name>/info.json
-      - vehicles/<name>/info.json
-      - ui/modules/apps/<name>/app.json
-    """
+def collect_roots_from_json_paths(info_paths: List[str], app_paths: List[str]) -> Tuple[str, str, str]:
     maps, vehicles, ui_apps = [], [], []
     seen_maps, seen_veh, seen_ui = set(), set(), set()
 
     for p in info_paths:
         parts = _split_parts(p)
-        # only accept direct root info.json
         if len(parts) == 3 and parts[2].lower() == "info.json":
             top = parts[0].lower()
             name = parts[1]
@@ -470,7 +416,6 @@ def collect_roots_from_json_paths(
 
     for p in app_paths:
         parts = _split_parts(p)
-        # ui/modules/apps/<name>/app.json
         if (
             len(parts) >= 5
             and parts[0].lower() == "ui"
@@ -490,25 +435,17 @@ def collect_roots_from_json_paths(
 
 
 # ---------------------------
-# end of helpers
-# Helpers
-# ---------------------------
-
-
-# ---------------------------
-# SQLite cache (v4 addition)
+# SQLite cache
 # ---------------------------
 CACHE_SCHEMA_VERSION = 1
 
 
 def _cache_db_path(out_csv_path: str) -> str:
-    """Place cache DB next to the CSV, same basename."""
     base, _ = os.path.splitext(out_csv_path)
     return base + ".cache.sqlite"
 
 
 def _cache_connect(db_path: str) -> sqlite3.Connection:
-    # timeout helps when a scheduled run overlaps a manual run
     conn = sqlite3.connect(db_path, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
@@ -536,14 +473,10 @@ def _cache_init(conn: sqlite3.Connection) -> None:
         )
         """
     )
-    # schema versioning
     cur = conn.execute("SELECT v FROM meta WHERE k='schema_version'")
     row = cur.fetchone()
     if row is None:
-        conn.execute(
-            "INSERT INTO meta(k, v) VALUES('schema_version', ?)",
-            (str(CACHE_SCHEMA_VERSION),),
-        )
+        conn.execute("INSERT INTO meta(k, v) VALUES('schema_version', ?)", (str(CACHE_SCHEMA_VERSION),))
         conn.commit()
         return
     try:
@@ -551,7 +484,6 @@ def _cache_init(conn: sqlite3.Connection) -> None:
     except Exception:
         existing = -1
     if existing != CACHE_SCHEMA_VERSION:
-        # Rebuild cache on version mismatch
         conn.execute("DROP TABLE IF EXISTS zip_cache")
         conn.execute(
             """
@@ -564,15 +496,11 @@ def _cache_init(conn: sqlite3.Connection) -> None:
             )
             """
         )
-        conn.execute(
-            "UPDATE meta SET v=? WHERE k='schema_version'", (str(CACHE_SCHEMA_VERSION),)
-        )
+        conn.execute("UPDATE meta SET v=? WHERE k='schema_version'", (str(CACHE_SCHEMA_VERSION),))
         conn.commit()
 
 
-def _cache_get_extras(
-    conn: sqlite3.Connection, file_path: str, file_size: int, mtime: float
-) -> Optional[Dict[str, str]]:
+def _cache_get_extras(conn: sqlite3.Connection, file_path: str, file_size: int, mtime: float) -> Optional[Dict[str, str]]:
     cur = conn.execute(
         "SELECT extras_json FROM zip_cache WHERE file_path=? AND file_size=? AND mtime=?",
         (file_path, int(file_size), float(mtime)),
@@ -587,13 +515,7 @@ def _cache_get_extras(
         return None
 
 
-def _cache_put_extras(
-    conn: sqlite3.Connection,
-    file_path: str,
-    file_size: int,
-    mtime: float,
-    extras: Dict[str, str],
-) -> None:
+def _cache_put_extras(conn: sqlite3.Connection, file_path: str, file_size: int, mtime: float, extras: Dict[str, str]) -> None:
     conn.execute(
         """
         INSERT INTO zip_cache(file_path, file_size, mtime, extras_json, updated_at)
@@ -622,12 +544,7 @@ def top_level_from_internal(path: str) -> str:
 def matches_ui_app_json(path: str) -> bool:
     p = path.replace("\\", "/").lstrip("/")
     parts = p.split("/")
-    if (
-        len(parts) >= 5
-        and parts[0].lower() == "ui"
-        and parts[1].lower() == "modules"
-        and parts[2].lower() == "apps"
-    ):
+    if len(parts) >= 5 and parts[0].lower() == "ui" and parts[1].lower() == "modules" and parts[2].lower() == "apps":
         return parts[-1].lower() == "app.json"
     return False
 
@@ -635,13 +552,7 @@ def matches_ui_app_json(path: str) -> bool:
 def ui_name_from_app_json(path: str) -> str:
     p = path.replace("\\", "/").lstrip("/")
     parts = [x for x in p.split("/") if x]
-    # ui/modules/apps/<appName>/app.json
-    if (
-        len(parts) >= 5
-        and parts[0].lower() == "ui"
-        and parts[1].lower() == "modules"
-        and parts[2].lower() == "apps"
-    ):
+    if len(parts) >= 5 and parts[0].lower() == "ui" and parts[1].lower() == "modules" and parts[2].lower() == "apps":
         return parts[3]
     return ""
 
@@ -728,9 +639,7 @@ def collect_json_candidates(zf: ZipFile, exclude: set) -> Tuple[List[str], List[
     return info_paths, app_paths
 
 
-def categorize_info_paths(
-    paths: List[str],
-) -> Tuple[List[str], List[str], List[str], List[str]]:
+def categorize_info_paths(paths: List[str]) -> Tuple[List[str], List[str], List[str], List[str]]:
     levels, vehicles, mod_info, other = [], [], [], []
     for p in paths:
         top = top_level_from_internal(p)
@@ -743,15 +652,6 @@ def categorize_info_paths(
         else:
             other.append(p)
     return levels, vehicles, mod_info, other
-
-
-def _is_under(root: str, name: str, path: str) -> bool:
-    # case-insensitive check for paths like "levels/<name>/..."
-    p = path.replace("\\", "/").lstrip("/")
-    parts = [x for x in p.split("/") if x]
-    if len(parts) < 2:
-        return False
-    return parts[0].lower() == root.lower() and parts[1].lower() == name.lower()
 
 
 def select_jsons(info_paths, app_paths, map_name, vehicle_name):
@@ -768,11 +668,8 @@ def select_jsons(info_paths, app_paths, map_name, vehicle_name):
     if vehicles and vehicle_names:
         vehicles = [p for p in vehicles if is_under_any("vehicles", vehicle_names, p)]
 
-    # NEW: if we had levels entries but none are in valid roots, ignore levels
     if had_levels and not levels:
         had_levels = False
-
-    # NEW: if we had vehicles entries but none are in valid roots, ignore vehicles
     if had_vehicles and not vehicles:
         had_vehicles = False
 
@@ -787,55 +684,53 @@ def select_jsons(info_paths, app_paths, map_name, vehicle_name):
     return "no-json-file", [], []
 
 
+def write_message_file(messages_dir: str, row_id: str, message: str) -> None:
+    # One file per row_id. Keep it dead simple and UTF-8.
+    os.makedirs(messages_dir, exist_ok=True)
+    fp = os.path.join(messages_dir, f"{row_id}.txt")
+    with open(fp, "w", encoding="utf-8", errors="replace", newline="") as f:
+        f.write(message or "")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument(
-        "-r", "--root", required=True, help="Folder to scan recursively for zips"
-    )
+    ap.add_argument("-r", "--root", required=True, help="Folder to scan recursively for zips")
     ap.add_argument("-o", "--output", help="Explicit output CSV path")
     ap.add_argument(
         "--out-base-dir",
         help="If provided and --output omitted, save to this folder as mods_index_on_<DRIVE>.csv",
     )
-    ap.add_argument(
-        "--max-cell-chars",
-        type=int,
-        default=1000,
-        help="Max characters per CSV cell (default 1000)",
-    )
-    ap.add_argument(
-        "--exclude-dirs",
-        default=",".join(EXCLUDE_DEFAULT),
-        help="Comma-separated dirs to exclude from JSON search anywhere in the zip path (ground zero).",
-    )
-    ap.add_argument(
-        "--progress-every",
-        type=int,
-        default=50,
-        help="Print progress every N zips (default 50). Use 0 to disable.",
-    )
+    ap.add_argument("--max-cell-chars", type=int, default=1000, help="Max characters per CSV cell (default 1000)")
+    ap.add_argument("--exclude-dirs", default=",".join(EXCLUDE_DEFAULT), help="Comma-separated dirs to exclude from JSON search anywhere in the zip path (ground zero).")
+    ap.add_argument("--progress-every", type=int, default=50, help="Print progress every N zips (default 50). Use 0 to disable.")
     ap.add_argument("--quiet", action="store_true", help="Suppress progress output.")
-    ap.add_argument(
-        "--popup",
-        dest="popup",
-        action="store_true",
-        help="Force a completion popup (manual runs).",
-    )
-    ap.add_argument(
-        "--no-popup",
-        dest="popup",
-        action="store_false",
-        help="Disable completion popup (scheduled runs).",
-    )
+    ap.add_argument("--popup", dest="popup", action="store_true", help="Force a completion popup (manual runs).")
+    ap.add_argument("--no-popup", dest="popup", action="store_false", help="Disable completion popup (scheduled runs).")
     ap.set_defaults(popup=None)
+
+    # NEW: message handling
+    ap.add_argument(
+        "--message-preview-chars",
+        type=int,
+        default=500,
+        help="How many message chars to keep in CSV as message_preview. Use 0 to disable preview entirely. (default 500)",
+    )
+    ap.add_argument(
+        "--messages-subdir",
+        default="__messages",
+        help="Folder name (relative to CSV output folder) to store per-row message files. (default __messages)",
+    )
+
     args = ap.parse_args()
 
-    exclude = {
-        x.strip().lower() for x in (args.exclude_dirs or "").split(",") if x.strip()
-    }
+    exclude = {x.strip().lower() for x in (args.exclude_dirs or "").split(",") if x.strip()}
 
     out_path = compute_output_path(args.root, args.output, args.out_base_dir)
     sidecar_path = os.path.splitext(out_path)[0] + ".details.jsonl"
+
+    # NEW: message directory (next to CSV)
+    out_dir = os.path.dirname(os.path.abspath(out_path))
+    messages_dir = os.path.join(out_dir, args.messages_subdir)
 
     # SQLite cache (ON always)
     cache_db = _cache_db_path(out_path)
@@ -852,7 +747,12 @@ def main():
 
     for i, zp in enumerate(zips, 1):
         row = dict(get_file_info(zp))
-        # Cache lookup (safe reuse only when path+size+mtime match)
+
+        # default message flags
+        row["has_message"] = "FALSE"
+        row["message_preview"] = ""
+
+        # Cache lookup
         try:
             _fsz = int(row.get("file_size_bytes") or 0)
         except Exception:
@@ -863,6 +763,7 @@ def main():
             _mtime = 0.0
         _abspath = os.path.abspath(zp)
         cached_extras = _cache_get_extras(conn, _abspath, _fsz, _mtime)
+
         if cached_extras is not None:
             row.update(cached_extras)
         else:
@@ -870,9 +771,7 @@ def main():
                 with ZipFile(zp, "r") as zf:
                     info_paths, app_paths = collect_json_candidates(zf, exclude)
 
-                    map_name, vehicle_name, ui_name = collect_roots_from_json_paths(
-                        info_paths, app_paths
-                    )
+                    map_name, vehicle_name, ui_name = collect_roots_from_json_paths(info_paths, app_paths)
                     if map_name:
                         row["map_name"] = map_name
                     if vehicle_name:
@@ -885,31 +784,22 @@ def main():
                     row["app_json_count"] = str(len(app_paths))
                     row["app_json_paths"] = ";".join(app_paths) if app_paths else ""
 
-                    rule_used, selected_info, selected_apps = select_jsons(
-                        info_paths, app_paths, map_name or "", vehicle_name or ""
-                    )
+                    rule_used, selected_info, selected_apps = select_jsons(info_paths, app_paths, map_name or "", vehicle_name or "")
                     row["json_rule_used"] = rule_used
-                    row["json_selected_count"] = str(
-                        len(selected_info) + len(selected_apps)
-                    )
-                    row["json_selected_paths"] = (
-                        ";".join(selected_info + selected_apps)
-                        if (selected_info or selected_apps)
-                        else ""
-                    )
+                    row["json_selected_count"] = str(len(selected_info) + len(selected_apps))
+                    row["json_selected_paths"] = ";".join(selected_info + selected_apps) if (selected_info or selected_apps) else ""
                     row["top_level_dir"] = rule_used
 
                     if rule_used == "ui" and selected_apps:
                         ui_names = []
                         seen = set()
-                        for ap in app_paths:
-                            n = ui_name_from_app_json(ap)
+                        for apath in app_paths:
+                            n = ui_name_from_app_json(apath)
                             if n:
                                 k = n.lower()
                                 if k not in seen:
                                     seen.add(k)
                                     ui_names.append(n)
-
                         if ui_names:
                             row["ui_name"] = ";".join(ui_names)
 
@@ -931,13 +821,26 @@ def main():
                                 data = f.read()
                             app = safe_load_json(data) or {}
                             if isinstance(app, dict):
-                                per_file_fields.append(
-                                    normalize_fields_from_obj(apply_app_aliases(app))
-                                )
+                                per_file_fields.append(normalize_fields_from_obj(apply_app_aliases(app)))
                         except Exception:
                             continue
 
                 row.update(aggregate_field_values(per_file_fields))
+
+                # NEW: move full message to file, and keep optional preview in CSV
+                full_msg = row.get("message") or ""
+                if isinstance(full_msg, str) and full_msg.strip():
+                    row["has_message"] = "TRUE"
+                    if args.message_preview_chars and args.message_preview_chars > 0:
+                        row["message_preview"] = full_msg[: args.message_preview_chars]
+                    else:
+                        row["message_preview"] = ""
+                    # Write message file (full)
+                    write_message_file(messages_dir, row["row_id"], full_msg)
+
+                # Remove message from row so it never lands in CSV
+                if "message" in row:
+                    del row["message"]
 
                 # Store extras in cache only on successful parse (no zip_error)
                 if "zip_error" not in row:
@@ -952,11 +855,7 @@ def main():
 
         rows.append(row)
 
-        if (
-            (not args.quiet)
-            and args.progress_every
-            and (i % args.progress_every == 0 or i == total)
-        ):
+        if (not args.quiet) and args.progress_every and (i % args.progress_every == 0 or i == total):
             elapsed = time.time() - start
             rate = (i / elapsed) if elapsed > 0 else 0.0
             print(f"Processed {i}/{total} ({rate:.1f} zips/s)", flush=True)
@@ -978,9 +877,7 @@ def main():
             lens = {}
             tfields = []
             for k, v in r.items():
-                s, t, orig, ln = sanitize_cell(
-                    str(v) if v is not None else "", max_len=args.max_cell_chars
-                )
+                s, t, orig, ln = sanitize_cell(str(v) if v is not None else "", max_len=args.max_cell_chars)
                 sanitized[k] = s
                 if t:
                     tfields.append(k)
@@ -1007,6 +904,7 @@ def main():
     elapsed = time.time() - start
     if not args.quiet:
         print(f"Wrote {len(rows)} rows to {out_path}", flush=True)
+        print(f"Messages folder: {messages_dir}", flush=True)
         print(
             f"Sidecar: {sidecar_path} (rows with truncations: {trunc_rows}, total truncated cells: {trunc_cells})",
             flush=True,
@@ -1018,7 +916,6 @@ def main():
     except Exception:
         pass
 
-    # Completion popup: show when run manually; suppress in scheduler (auto-detected) or via --no-popup
     if _should_show_popup(auto=True, popup_flag=args.popup):
         drive = derive_letter_from_path(args.root)
         msg = (
@@ -1026,7 +923,6 @@ def main():
             f"Drive: {drive}\n"
             f"Root: {os.path.abspath(args.root)}\n"
             f"Rows: {len(rows)}\n"
-            # f"Output: {out_path}"
         )
         _show_popup(f"{drive} drive BeamNG ZIP Extract", msg)
 
