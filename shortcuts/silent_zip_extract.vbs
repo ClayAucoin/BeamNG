@@ -31,7 +31,7 @@ expected(0) = OUT_DIR & "\mods_index_on_D.csv"
 expected(1) = OUT_DIR & "\mods_index_on_M.csv"
 expected(2) = OUT_DIR & "\mods_index_on_C.csv"
 expected(3) = OUT_DIR & "\mods_index_on_R.csv"
-expected(4) = OUT_DIR & "\mods_index_on_C__beamng_mods.csv"
+expected(4) = OUT_DIR & "\mods_index_on_C__mods.csv"
 
 ' How we decide a file is “done”
 Const POLL_MS = 5000          ' check every 5 seconds
@@ -46,7 +46,7 @@ For i = 0 To UBound(roots)
 
   ' Only add suffix for BeamNG "current\mods" path on C:
   If LCase(roots(i)) = LCase("C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive\current\mods") Then
-    cmd = cmd & " --out-suffix beamng_mods"
+    cmd = cmd & " --out-suffix mods"
   End If
 
   sh.Run cmd, 0, False
