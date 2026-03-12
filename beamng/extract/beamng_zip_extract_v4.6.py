@@ -1058,10 +1058,14 @@ def main():
 
     if _should_show_popup(auto=True, popup_flag=args.popup):
         drive = derive_letter_from_path(args.root)
+        rootPath = os.path.abspath(args.root)
+        if rootPath == "C:\\Users\\Administrator\\AppData\\Local\\BeamNG\\BeamNG.drive\\current\\mods":
+            rootPath = "BeamNG mods folder   "
+            
         msg = (
             f"BeamNG ZIP extract finished for {drive} drive.\n\n"
             f"Drive: {drive}\n"
-            f"Root: {os.path.abspath(args.root)}\n"
+            f"Root: {rootPath}\n"
             f"Rows: {len(rows)}\n"
         )
         _show_popup(f"{drive} drive BeamNG ZIP Extract", msg)
