@@ -8,7 +8,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 ' ---- CONFIG ----
 Dim PYTHONW, EXTRACT_PY, COMBINE_PY
 PYTHONW   = "pythonw.exe"
-EXTRACT_PY = "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.6.py"
+EXTRACT_PY = "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.7.py"
 ' COMBINE_PY = "C:\Users\Administrator\projects\BeamNG\beamng\combine\combine-csvs.py"
 
 Dim OUT_DIR
@@ -19,20 +19,20 @@ OUT_DIR = "C:\Users\Administrator\Dropbox\__BeamNG__\____directory-extract____\o
 ' COMBINED_OUT = "G:\My Drive\__BeamNG__\____directory-extract____\combined.csv"
 
 ' Drives / roots you want to run in parallel
-Dim roots(4)
+Dim roots(3)
 roots(0) = "D:\__BeamNG__\___mods___"
 roots(1) = "M:\__BeamNG__\___mods___"
 roots(2) = "C:\__BeamNG__\___mods___"
 roots(3) = "C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive\current\mods"
-roots(4) = "R:\__BeamNG__\___mods___"
+' roots(4) = "R:\__BeamNG__\___mods___"
 
 ' Expected output CSVs (must match your extractor naming)
-Dim expected(4)
+Dim expected(3)
 expected(0) = OUT_DIR & "\mods_index_on_D.csv"
 expected(1) = OUT_DIR & "\mods_index_on_M.csv"
 expected(2) = OUT_DIR & "\mods_index_on_C.csv"
 expected(3) = OUT_DIR & "\mods_index_on_C__mods.csv"
-expected(4) = OUT_DIR & "\mods_index_on_R.csv"
+' expected(4) = OUT_DIR & "\mods_index_on_R.csv"
 
 ' How we decide a file is “done”
 Const POLL_MS = 5000          ' check every 5 seconds
