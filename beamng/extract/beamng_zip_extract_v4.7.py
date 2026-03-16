@@ -3,7 +3,6 @@
 # python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.7.py" -r "M:\__BeamNG__\___mods___" --out-base-dir "C:\Users\Administrator\Dropbox\__BeamNG__\____directory-extract____\output"
 # python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.7.py" -r "C:\__BeamNG__\___mods___" --out-base-dir "C:\Users\Administrator\Dropbox\__BeamNG__\____directory-extract____\output"
 # python "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.7.py" -r "C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive\current\mods" --out-suffix "mods" --out-base-dir "C:\Users\Administrator\Dropbox\__BeamNG__\____directory-extract____\output"
-# --out-suffix mods
 
 """
 
@@ -114,6 +113,7 @@ MAP_KEYS = [
     "country",
     "biome",
     "size",
+    "previews",
 ]
 
 OTHER_KEYS = [
