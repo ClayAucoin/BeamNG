@@ -1,51 +1,59 @@
 #!/usr/bin/env python3
-"""
-beamng_zip_edit_kv_safe.py
-Hardened version:
-- Never writes to the original zip directly.
-- Always writes to <name>.edited.zip, validates it, then (if --in-place) swaps with a .bak backup.
-- If validation fails, the original remains untouched.
 
-Other features match the previous tool:
-- Scope selection (vehicles, levels, mod_info, all)
-- prefer-primary + include-mod-info
-- --set key=val, --remove key, --rename old:new (dot-path keys supported)
-- Dry-run by default; use --apply
-- CSV log via --log
 
-Dry run:
-python .\beamng_zip_edit_kv_safe.py `
-  -r "C:\__BeamNG__\___zip edit test" `
-  --scope levels,mod_info `
-  --set map_category=offroad `
-  --prefer-primary `
-  --include-mod-info `
-  --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
+# beamng_zip_edit_kv_safe.py
+# Hardened version:
+# - Never writes to the original zip directly.
+# - Always writes to <name>.edited.zip, validates it, then (if --in-place) swaps with a .bak backup.
+# - If validation fails, the original remains untouched.
 
-Apply without replacing originals (creates *.edited.zip):
-python .\beamng_zip_edit_kv_safe.py `
-  -r "C:\__BeamNG__\___zip edit test" `
-  --scope levels,mod_info `
-  --set map_category=offroad `
-  --prefer-primary `
-  --include-mod-info `
-  --apply `
-  --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
+# Other features match the previous tool:
+# - Scope selection (vehicles, levels, mod_info, all)
+# - prefer-primary + include-mod-info
+# - --set key=val, --remove key, --rename old:new (dot-path keys supported)
+# - Dry-run by default; use --apply
+# - CSV log via --log
 
-Swap in-place after validation (keeps .bak):
-python .\beamng_zip_edit_kv_safe.py `
-  -r "C:\__BeamNG__\___zip edit test" `
-  --scope levels,mod_info `
-  --set map_category=offroad `
-  --prefer-primary `
-  --include-mod-info `
-  --apply --in-place `
-  --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
+# Dry run:
+# python .\beamng_zip_edit_kv_safe.py `
+#   -r "C:\__BeamNG__\___zip edit test" `
+#   --scope levels,mod_info `
+#   --set map_category=offroad `
+#   --prefer-primary `
+#   --include-mod-info `
+#   --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
 
-"""
+# Apply without replacing originals (creates *.edited.zip):
+# python .\beamng_zip_edit_kv_safe.py `
+#   -r "C:\__BeamNG__\___zip edit test" `
+#   --scope levels,mod_info `
+#   --set map_category=offroad `
+#   --prefer-primary `
+#   --include-mod-info `
+#   --apply `
+#   --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
+
+# Swap in-place after validation (keeps .bak):
+# python .\beamng_zip_edit_kv_safe.py `
+#   -r "C:\__BeamNG__\___zip edit test" `
+#   --scope levels,mod_info `
+#   --set map_category=offroad `
+#   --prefer-primary `
+#   --include-mod-info `
+#   --apply --in-place `
+#   --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
+
+
 
 from __future__ import annotations
-import argparse, csv, os, json, re, shutil, tempfile, sys
+import argparse
+import csv
+import os
+import json
+import re
+import shutil
+import sys
+import tempfile  # noqa: F401
 from typing import Dict, Any, List, Tuple
 from zipfile import ZipFile, ZIP_DEFLATED, BadZipFile
 
@@ -68,11 +76,13 @@ def safe_load_json(raw: bytes) -> Dict:
         except Exception:
             continue
         try:
-            j = json.loads(t); return j if isinstance(j, dict) else {}
+            j = json.loads(t) 
+            return j if isinstance(j, dict) else {}
         except Exception:
             pass
         try:
-            j = json.loads(cleanup_json_blob(t)); return j if isinstance(j, dict) else {}
+            j = json.loads(cleanup_json_blob(t)) 
+            return j if isinstance(j, dict) else {}
         except Exception:
             pass
     return {}
@@ -87,7 +97,8 @@ def parse_value(s: str):
     return s
 
 def set_path(root: Dict, path: str, value: Any):
-    parts = path.split("."); cur = root
+    parts = path.split(".") 
+    cur = root
     for p in parts[:-1]:
         if p not in cur or not isinstance(cur[p], dict):
             cur[p] = {}
@@ -95,19 +106,24 @@ def set_path(root: Dict, path: str, value: Any):
     cur[parts[-1]] = value
 
 def remove_path(root: Dict, path: str):
-    parts = path.split("."); cur = root
+    parts = path.split(".") 
+    cur = root
     for p in parts[:-1]:
-        if p not in cur or not isinstance(cur[p], dict): return
+        if p not in cur or not isinstance(cur[p], dict): 
+            return
         cur = cur[p]
     cur.pop(parts[-1], None)
 
 def rename_key(root: Dict, old: str, new: str):
-    parts = old.split("."); cur = root
+    parts = old.split(".") 
+    cur = root
     for p in parts[:-1]:
-        if p not in cur or not isinstance(cur[p], dict): return
+        if p not in cur or not isinstance(cur[p], dict): 
+            return
         cur = cur[p]
     if parts[-1] in cur:
-        val = cur.pop(parts[-1]); set_path(root, new, val)
+        val = cur.pop(parts[-1]) 
+        set_path(root, new, val)
 
 def list_infos(zf: ZipFile) -> List[str]:
     paths = []
@@ -138,10 +154,12 @@ def filter_scope(paths: List[str], scope_set: set, prefer_primary: bool, include
             chosen += modinfo
         elif "mod_info" in scope_set:
             chosen += modinfo
-    seen=set(); out=[]
+    seen=set() 
+    out=[]
     for p in chosen:
         if p not in seen:
-            seen.add(p); out.append(p)
+            seen.add(p) 
+            out.append(p)
     return out
 
 def build_edited_zip(in_path: str, edits: Dict[str, Dict], out_path: str):
@@ -185,40 +203,50 @@ def main():
     ap.add_argument("--log", help="CSV log path (file or directory)")
     args = ap.parse_args()
 
-    if args.scope.lower() == "all": scope_set = {"vehicles","levels","mod_info"}
-    else: scope_set = {s.strip() for s in args.scope.lower().split(",") if s.strip() in {"vehicles","levels","mod_info"}}
+    if args.scope.lower() == "all": 
+        scope_set = {"vehicles","levels","mod_info"}
+    else: 
+        scope_set = {s.strip() for s in args.scope.lower().split(",") if s.strip() in {"vehicles","levels","mod_info"}}
     if not scope_set:
-        print("Nothing to edit: empty scope.", file=sys.stderr); return
+        print("Nothing to edit: empty scope.", file=sys.stderr) 
+        return
 
     def parse_sets(items):
         out=[]
         for s in items:
             if "=" not in s:
-                print(f"--set needs key=val, got: {s}", file=sys.stderr); continue
-            k,v = s.split("=",1); out.append((k.strip(), parse_value(v)))
+                print(f"--set needs key=val, got: {s}", file=sys.stderr) 
+                continue
+            k,v = s.split("=",1) 
+            out.append((k.strip(), parse_value(v)))
         return out
 
     def parse_renames(items):
         out=[]
         for s in items:
             if ":" not in s:
-                print(f"--rename needs old:new, got: {s}", file=sys.stderr); continue
-            old,new = s.split(":",1); out.append((old.strip(), new.strip()))
+                print(f"--rename needs old:new, got: {s}", file=sys.stderr) 
+                continue
+            old,new = s.split(":",1) 
+            out.append((old.strip(), new.strip()))
         return out
 
-    sets = parse_sets(args.sets); renames = parse_renames(args.renames)
+    sets = parse_sets(args.sets) 
+    renames = parse_renames(args.renames)
 
     logs = []
     for dirpath,_,files in os.walk(args.root):
         for fn in files:
-            if not fn.lower().endswith(".zip"): continue
+            if not fn.lower().endswith(".zip"): 
+                continue
             zp = os.path.join(dirpath, fn)
             try:
                 with ZipFile(zp,"r") as zf:
                     infos = list_infos(zf)
                 targets = filter_scope(infos, scope_set, args.prefer_primary, args.include_mod_info)
                 if not targets:
-                    logs.append({"path": zp, "status":"skip", "reason":"no targets in scope"}); continue
+                    logs.append({"path": zp, "status":"skip", "reason":"no targets in scope"}) 
+                    continue
 
                 if not args.apply:
                     logs.append({"path": zp, "status":"dry-run", "targets": ";".join(targets)})
@@ -229,12 +257,17 @@ def main():
                 edited = {}
                 with ZipFile(zp,"r") as zf2:
                     for ip in targets:
-                        with zf2.open(ip,"r") as f: data = f.read()
+                        with zf2.open(ip,"r") as f: 
+                            data = f.read()
                         j = safe_load_json(data)
-                        if not isinstance(j, dict): j = {}
-                        for old,new in renames: rename_key(j, old, new)
-                        for k,v in sets: set_path(j, k, v)
-                        for k in args.removes: remove_path(j, k)
+                        if not isinstance(j, dict): 
+                            j = {}
+                        for old,new in renames: 
+                            rename_key(j, old, new)
+                        for k,v in sets: 
+                            set_path(j, k, v)
+                        for k in args.removes: 
+                            remove_path(j, k)
                         edited[ip] = j
                 build_edited_zip(zp, edited, edited_zip)
 
@@ -265,7 +298,8 @@ def main():
         with open(log_path,"w",newline="",encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=["path","status","out","targets","reason"])
             w.writeheader()
-            for r in logs: w.writerow(r)
+            for r in logs: 
+                w.writerow(r)
 
     total=len(logs)
     edited=sum(1 for r in logs if r.get("status")=="edited")
