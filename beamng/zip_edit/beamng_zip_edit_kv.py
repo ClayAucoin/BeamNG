@@ -1,47 +1,56 @@
 #!/usr/bin/env python3
 
+"""
+beamng_zip_edit_kv_safe.py
+Hardened version:
+- Never writes to the original zip directly.
+- Always writes to <name>.edited.zip, validates it, then (if --in-place) swaps with a .bak backup.
+- If validation fails, the original remains untouched.
 
-# beamng_zip_edit_kv_safe.py
-# Hardened version:
-# - Never writes to the original zip directly.
-# - Always writes to <name>.edited.zip, validates it, then (if --in-place) swaps with a .bak backup.
-# - If validation fails, the original remains untouched.
+Other features match the previous tool:
+- Scope selection (vehicles, levels, mod_info, all)
+- prefer-primary + include-mod-info
+- --set key=val, --remove key, --rename old:new (dot-path keys supported)
+- Dry-run by default; use --apply
+- CSV log via --log
 
-# Other features match the previous tool:
-# - Scope selection (vehicles, levels, mod_info, all)
-# - prefer-primary + include-mod-info
-# - --set key=val, --remove key, --rename old:new (dot-path keys supported)
-# - Dry-run by default; use --apply
-# - CSV log via --log
+python C:\\Users\\Administrator\\projects\\BeamNG\\beamng\\zip_edit\\beamng_zip_edit_kv.py 
+    -r "C:\\__BeamNG__\\___zip edit test\\testing" 
+    --scope levels 
+    --set map_category=offroad 
+    --set MY_TEST_TAG=OFFROAD 
+    --apply 
+    --in-place
 
-# Dry run:
-# python .\beamng_zip_edit_kv_safe.py `
-#   -r "C:\__BeamNG__\___zip edit test" `
-#   --scope levels,mod_info `
-#   --set map_category=offroad `
-#   --prefer-primary `
-#   --include-mod-info `
-#   --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
+Dry run:
+python .\beamng_zip_edit_kv_safe.py `
+  -r "C:\\__BeamNG__\\___zip edit test" `
+  --scope levels,mod_info `
+  --set map_category=offroad `
+  --prefer-primary `
+  --include-mod-info `
+  --log "C:\\__BeamNG__\\___zip edit test\\edit_log.csv"
 
-# Apply without replacing originals (creates *.edited.zip):
-# python .\beamng_zip_edit_kv_safe.py `
-#   -r "C:\__BeamNG__\___zip edit test" `
-#   --scope levels,mod_info `
-#   --set map_category=offroad `
-#   --prefer-primary `
-#   --include-mod-info `
-#   --apply `
-#   --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
+Apply without replacing originals (creates *.edited.zip):
+python .\\beamng_zip_edit_kv_safe.py `
+  -r "C:\\__BeamNG__\\___zip edit test" `
+  --scope levels,mod_info `
+  --set map_category=offroad `
+  --prefer-primary `
+  --include-mod-info `
+  --apply `
+  --log "C:\\__BeamNG__\\___zip edit test\\edit_log.csv"
 
-# Swap in-place after validation (keeps .bak):
-# python .\beamng_zip_edit_kv_safe.py `
-#   -r "C:\__BeamNG__\___zip edit test" `
-#   --scope levels,mod_info `
-#   --set map_category=offroad `
-#   --prefer-primary `
-#   --include-mod-info `
-#   --apply --in-place `
-#   --log "C:\__BeamNG__\___zip edit test\edit_log.csv"
+Swap in-place after validation (keeps .bak):
+python .\\beamng_zip_edit_kv_safe.py `
+  -r "C:\\__BeamNG__\\___zip edit test" `
+  --scope levels,mod_info `
+  --set map_category=offroad `
+  --prefer-primary `
+  --include-mod-info `
+  --apply --in-place `
+  --log "C:\\__BeamNG__\\___zip edit test\\edit_log.csv"
+"""
 
 
 
@@ -201,7 +210,14 @@ def main():
     ap.add_argument("--apply", action="store_true", help="Actually write changes")
     ap.add_argument("--in-place", action="store_true", help="After building .edited.zip and validating it, replace original and keep .bak")
     ap.add_argument("--log", help="CSV log path (file or directory)")
+    ap.add_argument("--ext", default=".zip", help="File extension to scan")
+    ap.add_argument("--verbose", action="store_true", help="Print per-file results")
+    ap.add_argument("--fail-fast", action="store_true", help="Stop on first error")
+    ap.add_argument("--backup-suffix", default=".bak", help="Backup suffix for in-place replacement")
     args = ap.parse_args()
+    
+    if args.in_place and not args.apply:
+        ap.error("--in-place requires --apply")
 
     if args.scope.lower() == "all": 
         scope_set = {"vehicles","levels","mod_info"}
@@ -240,16 +256,27 @@ def main():
             if not fn.lower().endswith(".zip"): 
                 continue
             zp = os.path.join(dirpath, fn)
+            
+            if args.verbose:
+                print(f"Processing: {fn}")
             try:
                 with ZipFile(zp,"r") as zf:
                     infos = list_infos(zf)
                 targets = filter_scope(infos, scope_set, args.prefer_primary, args.include_mod_info)
                 if not targets:
-                    logs.append({"path": zp, "status":"skip", "reason":"no targets in scope"}) 
+                    logs.append({
+                        "path": zp, 
+                        "status":"skip", 
+                        "reason":"no targets in scope"
+                    }) 
                     continue
 
                 if not args.apply:
-                    logs.append({"path": zp, "status":"dry-run", "targets": ";".join(targets)})
+                    logs.append({
+                        "path": zp, 
+                        "status":"dry-run", 
+                        "targets": ";".join(targets)
+                    })
                     continue
 
                 # Build edited content in a sibling .edited.zip
@@ -273,22 +300,53 @@ def main():
 
                 ok, why = validate_zip(edited_zip)
                 if not ok:
-                    logs.append({"path": zp, "status":"error", "reason": f"validation failed: {why}"})
+                    logs.append({
+                        "path": zp, 
+                        "status":"error", 
+                        "reason": f"validation failed: {why}"
+                    })
                     continue
 
                 if args.in_place:
-                    bak = zp + ".bak"
+                    bak = zp + args.backup_suffix
+                    
                     if os.path.exists(bak):
                         os.remove(bak)
                     shutil.move(zp, bak)
                     shutil.move(edited_zip, zp)
-                    logs.append({"path": zp, "status":"edited", "out": zp, "targets": ";".join(edited.keys())})
+                    logs.append({
+                        "path": zp, 
+                        "status":"edited", 
+                        "out": zp, 
+                        "targets": ";".join(edited.keys())
+                        })
                 else:
-                    logs.append({"path": zp, "status":"edited", "out": edited_zip, "targets": ";".join(edited.keys())})
+                    logs.append({
+                        "path": zp, 
+                        "status":"edited", 
+                        "out": edited_zip, 
+                        "targets": ";".join(edited.keys())
+                        })
+                    
             except BadZipFile as e:
-                logs.append({"path": zp, "status":"error", "reason": f"BadZipFile: {e}"})
+                logs.append({
+                    "path": zp,
+                    "status": "error",
+                    "reason": f"BadZipFile: {e}"
+                })
+
+                if args.fail_fast:
+                    raise
+                
             except Exception as e:
-                logs.append({"path": zp, "status":"error", "reason": f"{type(e).__name__}: {e}"})
+                logs.append({
+                    "path": zp,
+                    "status": "error",
+                    "reason": f"{type(e).__name__}: {e}"
+                })
+
+    if args.fail_fast:
+        raise
 
     if args.log:
         log_path = args.log

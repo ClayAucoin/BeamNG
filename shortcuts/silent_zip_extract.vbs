@@ -23,7 +23,7 @@ Dim roots(3)
 roots(0) = "D:\__BeamNG__\___mods___"
 roots(1) = "M:\__BeamNG__\___mods___"
 roots(2) = "C:\__BeamNG__\___mods___"
-roots(3) = "C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive\current\mods"
+roots(3) = "C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive\current"
 ' roots(4) = "R:\__BeamNG__\___mods___"
 
 ' Expected output CSVs (must match your extractor naming)
