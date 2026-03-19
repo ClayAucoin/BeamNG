@@ -8,7 +8,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 ' ---- CONFIG ----
 Dim PYTHONW, EXTRACT_PY, COMBINE_PY
 PYTHONW   = "pythonw.exe"
-EXTRACT_PY = "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.7.py"
+EXTRACT_PY = "C:\Users\Administrator\projects\BeamNG\beamng\extract\beamng_zip_extract_v4.8.py"
 ' COMBINE_PY = "C:\Users\Administrator\projects\BeamNG\beamng\combine\combine-csvs.py"
 
 Dim OUT_DIR
@@ -23,7 +23,7 @@ Dim roots(3)
 roots(0) = "D:\__BeamNG__\___mods___"
 roots(1) = "M:\__BeamNG__\___mods___"
 roots(2) = "C:\__BeamNG__\___mods___"
-roots(3) = "C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive\current"
+roots(3) = "C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive"
 ' roots(4) = "R:\__BeamNG__\___mods___"
 
 ' Expected output CSVs (must match your extractor naming)
@@ -46,7 +46,7 @@ For i = 0 To UBound(roots)
   cmd = """" & PYTHONW & """ """ & EXTRACT_PY & """ -r """ & roots(i) & """ --out-base-dir """ & OUT_DIR & """ --popup"
 
   ' Only add suffix for BeamNG "current\mods" path on C:
-  If LCase(roots(i)) = LCase("C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive\current\mods") Then
+  If LCase(roots(i)) = LCase("C:\Users\Administrator\AppData\Local\BeamNG\BeamNG.drive") Then
     cmd = cmd & " --out-suffix mods"
   End If
 
