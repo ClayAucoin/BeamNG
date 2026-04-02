@@ -1,14 +1,15 @@
 import csv
 import re
 import time
-import io
+import io  # noqa: F401
 import os
-from dataclasses import dataclass, asdict
+import requests
+
+from dataclasses import dataclass, asdict  # noqa: F401
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlparse
-
-import requests
 from bs4 import BeautifulSoup
+
 
 BASE = "https://www.beamng.com"
 HEADERS = {
@@ -24,10 +25,6 @@ SAVE_EVERY = 5
 
 
 def load_input_rows(csv_url):
-    import csv
-    import io
-    import requests
-
     r = requests.get(csv_url, timeout=30)
     r.raise_for_status()
 
@@ -182,7 +179,7 @@ def scrape_resource(resource_url: str) -> dict:
     # tagline usually right below h1
     tagline = ""
     if title_el:
-        nxt = title_el.find_next(string=False)
+        nxt = title_el.find_next(string=False)  # noqa: F841
     tagline_el = soup.select_one("h1 + div, h1 + p")
     if tagline_el:
         tagline = clean_text(tagline_el.get_text(" ", strip=True))
@@ -250,7 +247,7 @@ def scrape_resource(resource_url: str) -> dict:
     if not author_url and len(author_candidates) == 1:
         author_url = author_candidates[0][1]
 
-    info_text = soup.get_text("\n", strip=True)
+    info_text = soup.get_text("\n", strip=True)  # noqa: F841
 
     total_downloads = find_info_value(soup, "Total Downloads:")
     beamng_unique_id = find_info_value(soup, "Unique ID:")
@@ -383,7 +380,7 @@ def scrape_author_page(author_url: str) -> tuple[list[dict], list[str]]:
     while True:
         url = author_url if page == 1 else author_url.rstrip("/") + f"page-{page}/"
         soup = get_soup(url)
-        text = soup.get_text("\n", strip=True)
+        text = soup.get_text("\n", strip=True)  # noqa: F841
 
         author_name = find_info_value(soup, "Author:")
         author_mod_count = find_info_value(soup, "Mods:")
