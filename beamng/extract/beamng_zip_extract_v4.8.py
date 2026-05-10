@@ -128,6 +128,15 @@ OTHER_KEYS = [
     "tagid",
     "message",  # we will remove from CSV row and store externally
     "prefix_title",
+    "resource_id",
+    "current_version_id",
+    "resource_version_id",
+    "resource_category_id",
+    "resource_date",
+	"update_count",
+	"title",
+	"user_id",
+	"category_title",
 ]
 
 # New columns we add in v4.4
